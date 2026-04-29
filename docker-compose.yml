@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  focus-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: focus:latest
+    container_name: focus-app
+    restart: unless-stopped
+    ports:
+      - "3002:3000"
+    environment:
+      - NODE_ENV=production
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+    volumes:
+      - focus-app-data:/app/data
+    networks:
+      - rocalian-net
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  focus-nginx:
+    image: nginx:alpine
+    container_name: focus-nginx
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - focus-app
+    networks:
+      - rocalian-net
+
+volumes:
+  focus-app-data:
+
+networks:
+  rocalian-net:
+    external: true
