@@ -1,0 +1,12 @@
+{
+  "name": "Foco",
+  "description": "A hyper-local discovery platform focused on personal interests and neighborhood relevance, filtering out social media noise.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "Geofencing",
+    "Interest Matching",
+    "AI-Powered Curation"
+  ]
+}

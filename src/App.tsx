@@ -1,0 +1,211 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { 
+  MapPin, 
+  Settings2, 
+  Sparkles, 
+  ArrowRight,
+  RefreshCw,
+  Info
+} from 'lucide-react';
+import { Interest, UserSettings, LocalEvent } from './types';
+import { INITIAL_INTERESTS } from './constants';
+import { curateLocalEvents } from './services/geminiService';
+import { InterestPicker } from './components/InterestPicker';
+import { MapOverlay } from './components/MapOverlay';
+import { EventFeed } from './components/EventFeed';
+
+export default function App() {
+  const [interests, setInterests] = useState<Interest[]>(INITIAL_INTERESTS);
+  const [settings, setSettings] = useState<UserSettings>({
+    radius: 3,
+    location: [-33.4542, -70.5976], // Plaza Ñuñoa
+    locationName: 'Plaza Ñuñoa, Santiago'
+  });
+  const [events, setEvents] = useState<LocalEvent[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const fetchEvents = useCallback(async () => {
+    const activeInterests = interests.filter(i => i.active).map(i => i.name);
+    if (activeInterests.length === 0) {
+      setEvents([]);
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const curated = await curateLocalEvents(activeInterests, settings);
+      setEvents(curated);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [interests, settings]);
+
+  useEffect(() => {
+    fetchEvents();
+  }, [fetchEvents]);
+
+  const toggleInterest = (id: string) => {
+    setInterests(prev => prev.map(i => 
+      i.id === id ? { ...i, active: !i.active } : i
+    ));
+  };
+
+  const priorityEvent = events.find(e => e.isPriority) || events[0];
+
+  return (
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 p-4 md:p-8 font-sans selection:bg-indigo-500 selection:text-white">
+      <div className="max-w-7xl mx-auto flex flex-col h-full min-h-[90vh]">
+        
+        {/* Header */}
+        <header className="flex justify-between items-center mb-8">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-600/20">
+              <Sparkles className="text-white" size={24} />
+            </div>
+            <h1 className="text-2xl font-black tracking-tighter uppercase">
+              FOCO <span className="text-zinc-500 font-normal">/ Filtro Prioritario</span>
+            </h1>
+          </div>
+          <div className="hidden md:flex items-center gap-6">
+            <div className="bg-zinc-900 px-4 py-2 rounded-full border border-zinc-800 flex items-center gap-3">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="text-xs font-bold tracking-tight uppercase text-zinc-400">{settings.locationName}</span>
+            </div>
+            <button 
+              onClick={() => fetchEvents()}
+              className="p-2.5 bg-zinc-900 border border-zinc-800 rounded-full hover:bg-zinc-800 transition-colors"
+            >
+              <RefreshCw size={18} className={isLoading ? 'animate-spin' : ''} />
+            </button>
+          </div>
+        </header>
+
+        {/* Major Bento Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 auto-rows-min md:h-[calc(100vh-12rem)]">
+          
+          {/* Priority Hero Card */}
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="col-span-1 md:col-span-7 row-span-1 md:row-span-4 bg-indigo-600 rounded-[2.5rem] p-8 md:p-10 flex flex-col justify-between relative overflow-hidden shadow-2xl shadow-indigo-600/10 min-h-[400px]"
+          >
+            <div className="relative z-10">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="bg-black/20 backdrop-blur-md px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] text-white">
+                  {priorityEvent?.category || 'Destacado para ti'}
+                </span>
+                <span className="bg-indigo-500/30 backdrop-blur-md px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-[0.1em] text-indigo-200 flex items-center gap-2 border border-indigo-400/20">
+                  <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-pulse" />
+                  Live Scout Active
+                </span>
+              </div>
+              <h2 className="text-4xl md:text-5xl lg:text-6xl font-black mt-6 leading-[0.95] tracking-tighter">
+                {isLoading ? 'Escaneando...' : priorityEvent?.title || 'Buscando el foco...'}
+              </h2>
+              <p className="text-indigo-100 mt-6 max-w-md text-base md:text-lg leading-relaxed font-medium opacity-90">
+                {priorityEvent?.description || 'Personaliza tus intereses para que tu scout local encuentre lo que realmente te importa.'}
+              </p>
+            </div>
+            
+            <div className="flex flex-wrap items-center gap-6 relative z-10 pt-8">
+              <button className="bg-white text-indigo-600 px-8 py-3.5 rounded-full font-bold text-lg hover:scale-105 transition-transform shadow-xl shadow-black/10">
+                Ir al Evento
+              </button>
+              <div className="flex items-center gap-2 text-indigo-100 text-sm font-bold uppercase tracking-wider">
+                <MapPin size={18} />
+                <span>A {priorityEvent?.distance || settings.radius}km de ti</span>
+              </div>
+            </div>
+
+            {/* Abstract background shapes */}
+            <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-400/20 rounded-full -mr-32 -mt-32 blur-[100px]" />
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/10 rounded-full -ml-32 -mb-32 blur-[80px]" />
+          </motion.div>
+
+          {/* Range Control Card */}
+          <div className="col-span-1 md:col-span-5 row-span-1 md:row-span-2 bg-zinc-900 border border-zinc-800 rounded-[2rem] p-8 flex flex-col justify-between hover:border-zinc-700 transition-colors">
+            <div>
+              <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] mb-6">Radio de Proximidad</h3>
+              <div className="flex justify-between items-end mb-4">
+                <span className="text-7xl font-black tracking-tighter">{settings.radius}km</span>
+                <span className="text-zinc-500 text-sm font-medium italic pb-3">"{settings.radius <= 3 ? 'Cerca de casa' : 'Toda la ciudad'}"</span>
+              </div>
+              <div className="relative mt-2">
+                <input 
+                    type="range" 
+                    min="1" 
+                    max="10" 
+                    step="0.5"
+                    value={settings.radius} 
+                    onChange={(e) => setSettings(prev => ({ ...prev, radius: parseFloat(e.target.value) }))}
+                    className="w-full h-1.5 bg-zinc-800 rounded-full appearance-none cursor-pointer accent-indigo-500"
+                />
+              </div>
+            </div>
+            <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-tighter mt-4 flex items-center gap-2">
+              <Info size={12} />
+              Bloqueando ruido fuera de este círculo.
+            </p>
+          </div>
+
+          {/* Interests Cloud Card */}
+          <div className="col-span-1 md:col-span-5 row-span-1 md:row-span-3 bg-zinc-900 border border-zinc-800 rounded-[2rem] p-8 flex flex-col h-full overflow-hidden">
+            <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] mb-6">Filtros de Atención</h3>
+            <div className="overflow-y-auto pr-2 custom-scrollbar flex-1">
+              <InterestPicker interests={interests} onToggle={toggleInterest} />
+            </div>
+          </div>
+
+          {/* Secondary Events / Feed Items (Spanning the bottom) */}
+          <div className="col-span-1 md:col-span-7 row-span-1 md:row-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+             {events.slice(1, 3).map((event) => (
+                <div key={event.id} className="bg-zinc-900 border border-zinc-800 rounded-[2rem] p-6 flex items-center gap-5 hover:border-zinc-700 transition-colors">
+                  <div className="w-16 h-16 bg-zinc-800 rounded-2xl flex items-center justify-center text-3xl shadow-inner shrink-0 leading-none">
+                    {event.category.includes('Gastronomía') ? '🍣' : event.category.includes('Música') ? '🎸' : '📍'}
+                  </div>
+                  <div className="overflow-hidden">
+                    <h4 className="font-black text-zinc-100 truncate tracking-tight">{event.title}</h4>
+                    <p className="text-zinc-500 text-xs line-clamp-1 mb-1">{event.description}</p>
+                    <span className="text-[10px] text-indigo-400 font-black uppercase tracking-widest flex items-center gap-1">
+                      <MapPin size={10} /> {event.distance}km
+                    </span>
+                  </div>
+                </div>
+             ))}
+             {events.length < 2 && (
+               <div className="md:col-span-2 flex items-center justify-center border-2 border-dashed border-zinc-800 rounded-[2rem] text-zinc-600 text-sm italic py-8">
+                 Selecciona más intereses para llenar el radar
+               </div>
+             )}
+          </div>
+
+          {/* Map / Visualization (replacing the empty space) */}
+          <div className="col-span-1 md:col-span-5 row-span-1 md:row-span-1 bg-zinc-900 border border-zinc-800 rounded-[2rem] overflow-hidden group">
+             <div className="h-full w-full pointer-events-none opacity-50 contrast-125 grayscale group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-700">
+               <MapOverlay center={settings.location} radius={settings.radius} events={events} />
+             </div>
+          </div>
+
+        </div>
+
+        {/* Footer */}
+        <footer className="mt-12 mb-8 flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] text-zinc-600 uppercase tracking-[0.2em] font-black border-t border-zinc-900 pt-8">
+          <p>© 2026 FOCO • RED DE PROXIMIDAD REAL</p>
+          <div className="flex gap-8">
+            <p>SIN ALGORITMOS DE RELLENO</p>
+            <p className="text-zinc-400">PRIORIDAD GEOGRÁFICA ACTIVA</p>
+          </div>
+        </footer>
+      </div>
+    </div>
+  );
+}
+
