@@ -16,6 +16,14 @@ const ongoingRequests: Map<string, Promise<LocalEvent[]>> = new Map();
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
 /**
+ * Check if Gemini API is properly configured
+ */
+const isGeminiConfigured = (): boolean => {
+  const apiKey = process.env.GEMINI_API_KEY;
+  return !!(apiKey && apiKey.trim().length > 0 && apiKey !== "MY_GEMINI_API_KEY");
+};
+
+/**
  * Generate a cache key based on interests and settings
  */
 const generateCacheKey = (interests: Interest[], settings: UserSettings): string => {
@@ -95,9 +103,15 @@ export async function curateLocalEvents(
   interests: Interest[],
   settings: UserSettings
 ): Promise<LocalEvent[]> {
+  // Check if Gemini API is configured
+  if (!isGeminiConfigured()) {
+    console.info("Gemini API not configured - returning empty events list");
+    return [];
+  }
+
   // Generate cache key
   const cacheKey = generateCacheKey(interests, settings);
-  
+
   // Check if we have a valid cached result
   const cachedEntry = cache.get(cacheKey);
   if (cachedEntry && (Date.now() - cachedEntry.timestamp) < CACHE_DURATION_MS) {
