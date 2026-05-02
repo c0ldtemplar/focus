@@ -14,6 +14,7 @@ RUN npm install --production=false && \
 COPY . .
 
 # Build the application
+ENV ROLLUP_SKIP_NATIVE=true
 RUN npm run build
 
 # Production stage
