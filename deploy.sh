@@ -8,7 +8,7 @@ ENV_FILE=".env.local"
 COMPOSE_FILE="docker-compose.yml"
 REMOTE_USER="coldtemplar"
 REMOTE_HOST="192.168.4.7"
-REMOTE_PATH="/opt/focus"
+REMOTE_PATH="/home/coldtemplar/focus"
 
 # Colors for output
 RED='\033[0;31m'
