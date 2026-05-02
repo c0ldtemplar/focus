@@ -39,7 +39,7 @@ done
 # Check prerequisites
 log_info "Checking prerequisites..."
 command -v docker >/dev/null 2>&1 || { log_error "docker is not installed"; exit 1; }
-command -v docker-compose >/dev/null 2>&1 || { log_error "docker-compose is not installed"; exit 1; }
+docker compose version >/dev/null 2>&1 || { log_error "docker compose is not available"; exit 1; }
 
 # Validate environment
 if [ ! -f "$ENV_FILE" ]; then
