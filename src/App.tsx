@@ -3,13 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { 
-  MapPin, 
-  Settings2, 
-  Sparkles, 
-  ArrowRight,
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import { motion } from 'motion/react';
+import toast from 'react-hot-toast';
+import {
+  MapPin,
+  Sparkles,
   RefreshCw,
   Info
 } from 'lucide-react';
@@ -17,8 +16,8 @@ import { Interest, UserSettings, LocalEvent } from './types';
 import { INITIAL_INTERESTS } from './constants';
 import { curateLocalEvents } from './services/geminiService';
 import { InterestPicker } from './components/InterestPicker';
-import { MapOverlay } from './components/MapOverlay';
-import { EventFeed } from './components/EventFeed';
+
+const MapOverlay = lazy(() => import('./components/MapOverlay').then(module => ({ default: module.MapOverlay })));
 
 export default function App() {
   // Load interests from localStorage or use initial interests
@@ -81,24 +80,22 @@ export default function App() {
        return;
      }
 
-     setIsLoading(true);
-     try {
-       const curated = await curateLocalEvents(interests, settings);
-       setEvents(curated);
-     } catch (error: any) {
-       console.error(error);
-       // In a production app, you might want to show a toast or notification here
-       // For now, we'll just log the error and keep the previous events
-       // If there are no previous events, we'll show an empty array
-       if (events.length === 0) {
-         setEvents([]);
-       }
-     } finally {
+      setIsLoading(true);
+      try {
+        const curated = await curateLocalEvents(interests, settings);
+        setEvents(curated);
+        toast.success(`Found ${curated.length} local events!`);
+      } catch (error: unknown) {
+        console.error(error);
+        toast.error('Failed to fetch events. Please try again.');
+        setEvents([]);
+      } finally {
        setIsLoading(false);
      }
-   }, [interests, settings, events]);
+    }, [interests, settings]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchEvents();
   }, [fetchEvents]);
 
@@ -112,7 +109,14 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 p-4 md:p-8 font-sans selection:bg-indigo-500 selection:text-white">
-      <div className="max-w-7xl mx-auto flex flex-col h-full min-h-[90vh]">
+      {/* Skip link for accessibility */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 bg-indigo-600 text-white px-4 py-2 rounded z-50"
+      >
+        Skip to main content
+      </a>
+      <div id="main-content" className="max-w-7xl mx-auto flex flex-col h-full min-h-[90vh]">
         
          {/* Header */}
          <header className="flex justify-between items-center mb-8">
@@ -270,35 +274,54 @@ export default function App() {
              </div>
            </div>
 
-          {/* Secondary Events / Feed Items (Spanning the bottom) */}
-          <div className="col-span-1 md:col-span-7 row-span-1 md:row-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
-             {events.slice(1, 3).map((event) => (
-                <div key={event.id} className="bg-zinc-900 border border-zinc-800 rounded-[2rem] p-6 flex items-center gap-5 hover:border-zinc-700 transition-colors">
-                  <div className="w-16 h-16 bg-zinc-800 rounded-2xl flex items-center justify-center text-3xl shadow-inner shrink-0 leading-none">
-                    {event.category.includes('Gastronomía') ? '🍣' : event.category.includes('Música') ? '🎸' : '📍'}
-                  </div>
-                  <div className="overflow-hidden">
-                    <h4 className="font-black text-zinc-100 truncate tracking-tight">{event.title}</h4>
-                    <p className="text-zinc-500 text-xs line-clamp-1 mb-1">{event.description}</p>
-                    <span className="text-[10px] text-indigo-400 font-black uppercase tracking-widest flex items-center gap-1">
-                      <MapPin size={10} /> {event.distance}km
-                    </span>
-                  </div>
-                </div>
-             ))}
-             {events.length < 2 && (
-               <div className="md:col-span-2 flex items-center justify-center border-2 border-dashed border-zinc-800 rounded-[2rem] text-zinc-600 text-sm italic py-8">
-                 Selecciona más intereses para llenar el radar
-               </div>
-             )}
-          </div>
+           {/* Secondary Events / Feed Items (Spanning the bottom) */}
+           <div className="col-span-1 md:col-span-7 row-span-1 md:row-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+              {isLoading ? (
+                <>
+                  {[...Array(2)].map((_, i) => (
+                    <div key={i} className="bg-zinc-900 border border-zinc-800 rounded-[2rem] p-6 flex items-center gap-5 animate-pulse">
+                      <div className="w-16 h-16 bg-zinc-800 rounded-2xl animate-pulse shrink-0" />
+                      <div className="overflow-hidden flex-1">
+                        <div className="h-4 bg-zinc-700 rounded animate-pulse mb-2" />
+                        <div className="h-3 bg-zinc-700 rounded animate-pulse w-3/4 mb-2" />
+                        <div className="h-3 bg-indigo-600/20 rounded animate-pulse w-1/2" />
+                      </div>
+                    </div>
+                  ))}
+                </>
+              ) : (
+                <>
+                  {events.slice(1, 3).map((event) => (
+                     <div key={event.id} className="bg-zinc-900 border border-zinc-800 rounded-[2rem] p-6 flex items-center gap-5 hover:border-zinc-700 transition-colors">
+                       <div className="w-16 h-16 bg-zinc-800 rounded-2xl flex items-center justify-center text-3xl shadow-inner shrink-0 leading-none">
+                         {event.category.includes('Gastronomía') ? '🍣' : event.category.includes('Música') ? '🎸' : '📍'}
+                       </div>
+                       <div className="overflow-hidden">
+                         <h4 className="font-black text-zinc-100 truncate tracking-tight">{event.title}</h4>
+                         <p className="text-zinc-500 text-xs line-clamp-1 mb-1">{event.description}</p>
+                         <span className="text-[10px] text-indigo-400 font-black uppercase tracking-widest flex items-center gap-1">
+                           <MapPin size={10} /> {event.distance}km
+                         </span>
+                       </div>
+                     </div>
+                  ))}
+                  {events.length < 2 && (
+                    <div className="md:col-span-2 flex items-center justify-center border-2 border-dashed border-zinc-800 rounded-[2rem] text-zinc-600 text-sm italic py-8">
+                      Selecciona más intereses para llenar el radar
+                    </div>
+                  )}
+                </>
+              )}
+           </div>
 
-          {/* Map / Visualization (replacing the empty space) */}
-          <div className="col-span-1 md:col-span-5 row-span-1 md:row-span-1 bg-zinc-900 border border-zinc-800 rounded-[2rem] overflow-hidden group">
-             <div className="h-full w-full pointer-events-none opacity-50 contrast-125 grayscale group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-700">
-               <MapOverlay center={settings.location} radius={settings.radius} events={events} />
-             </div>
-          </div>
+           {/* Map / Visualization (replacing the empty space) */}
+           <div className="col-span-1 md:col-span-5 row-span-1 md:row-span-1 bg-zinc-900 border border-zinc-800 rounded-[2rem] overflow-hidden group">
+              <div className="h-full w-full pointer-events-none opacity-50 contrast-125 grayscale group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-700">
+                <Suspense fallback={<div className="h-full w-full bg-zinc-800 animate-pulse rounded-[2rem]" />}>
+                  <MapOverlay center={settings.location} radius={settings.radius} events={events} />
+                </Suspense>
+              </div>
+           </div>
 
         </div>
 

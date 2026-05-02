@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { MapPin, Calendar, Sparkles, SlidersHorizontal } from 'lucide-react';
+import { MapPin, Calendar, Sparkles } from 'lucide-react';
 import { LocalEvent } from '../types';
 
 interface Props {
@@ -8,7 +8,7 @@ interface Props {
   isLoading: boolean;
 }
 
-export const EventFeed: React.FC<Props> = ({ events, isLoading }) => {
+export const EventFeed: React.FC<Props> = React.memo(({ events, isLoading }) => {
   if (isLoading) {
     return (
       <div className="space-y-4" aria-live="polite" aria-label="Loading events">
@@ -99,4 +99,4 @@ export const EventFeed: React.FC<Props> = ({ events, isLoading }) => {
       ))}
     </div>
   );
-};
+});

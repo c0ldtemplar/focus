@@ -34,7 +34,7 @@ const generateCacheKey = (interests: Interest[], settings: UserSettings): string
 /**
  * Validate that the response from Gemini matches our expected structure
  */
-const validateEventData = (data: any): LocalEvent[] => {
+const validateEventData = (data: unknown): LocalEvent[] => {
   if (!Array.isArray(data)) {
     throw new Error("Expected array of events");
   }
@@ -194,14 +194,14 @@ export async function curateLocalEvents(
         });
         
         return validatedData;
-      } catch (error: any) {
+      } catch (error: unknown) {
         // If this was the last attempt, throw the error
         if (attempt === maxRetries) {
           console.error(`Gemini curation failed after ${maxRetries + 1} attempts:`, error);
           
           // Return a user-friendly error instead of empty array when possible
           // In a real app, we might want to show a toast or notification
-          throw new Error(`Failed to fetch events after ${maxRetries + 1} attempts: ${error.message}`);
+          throw new Error(`Failed to fetch events after ${maxRetries + 1} attempts: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
         }
         
         // Otherwise, wait before retrying with exponential backoff
