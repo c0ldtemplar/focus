@@ -69,7 +69,11 @@ set +a
 
 if [ "$PROD_MODE" = true ]; then
   log_info "Production deployment to Raspberry Pi..."
-  
+
+  # Create remote directory
+  log_info "Creating remote directory..."
+  sshpass -p 'BB2024' ssh -o StrictHostKeyChecking=no "$REMOTE_USER@$REMOTE_HOST" "mkdir -p $REMOTE_PATH"
+
   # Build Docker image
   log_info "Building Docker image..."
   docker compose build
