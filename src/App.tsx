@@ -3,30 +3,35 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { motion } from 'motion/react';
 import toast from 'react-hot-toast';
 import {
   MapPin,
   Sparkles,
   RefreshCw,
-  Info
+  Info,
+  Heart,
+  Share,
+  LogOut
 } from 'lucide-react';
 import { Interest, UserSettings, LocalEvent } from './types';
 import { INITIAL_INTERESTS } from './constants';
 import { curateLocalEvents } from './services/geminiService';
 import { InterestPicker } from './components/InterestPicker';
+import { useAuth } from './contexts/AuthContext';
+import { AuthModal } from './components/Auth/AuthModal';
 
 const MapOverlay = lazy(() => import('./components/MapOverlay').then(module => ({ default: module.MapOverlay })));
 
-export default function App() {
+const App = React.memo(function App() {
   // Load interests from localStorage or use initial interests
   const loadInterests = (): Interest[] => {
     try {
       const saved = localStorage.getItem('focus-interests');
       return saved ? JSON.parse(saved) : INITIAL_INTERESTS;
-    } catch (error) {
-      console.error('Failed to load interests from localStorage', error);
+    } catch {
+      console.error('Failed to load interests from localStorage');
       return INITIAL_INTERESTS;
     }
   };
@@ -40,8 +45,8 @@ export default function App() {
         location: [-33.4542, -70.5976], // Plaza Ñuñoa
         locationName: 'Plaza Ñuñoa, Santiago'
       };
-    } catch (error) {
-      console.error('Failed to load settings from localStorage', error);
+    } catch {
+      console.error('Failed to load settings from localStorage');
       return {
         radius: 3,
         location: [-33.4542, -70.5976], // Plaza Ñuñoa
@@ -55,12 +60,24 @@ export default function App() {
   const [events, setEvents] = useState<LocalEvent[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
+  const [bookmarks, setBookmarks] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('focus-bookmarks');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      console.error('Failed to load bookmarks from localStorage');
+      return [];
+    }
+  });
+
+  const { user, logout } = useAuth();
+
   // Save interests to localStorage whenever they change
   useEffect(() => {
     try {
       localStorage.setItem('focus-interests', JSON.stringify(interests));
-    } catch (error) {
-      console.error('Failed to save interests to localStorage', error);
+    } catch {
+      console.error('Failed to save interests to localStorage');
     }
   }, [interests]);
 
@@ -68,10 +85,19 @@ export default function App() {
   useEffect(() => {
     try {
       localStorage.setItem('focus-settings', JSON.stringify(settings));
-    } catch (error) {
-      console.error('Failed to save settings to localStorage', error);
+    } catch {
+      console.error('Failed to save settings to localStorage');
     }
   }, [settings]);
+
+  // Save bookmarks to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem('focus-bookmarks', JSON.stringify(bookmarks));
+    } catch {
+      console.error('Failed to save bookmarks to localStorage');
+    }
+  }, [bookmarks]);
 
    const fetchEvents = useCallback(async () => {
      const activeInterests = interests.filter(i => i.active).map(i => i.name);
@@ -95,17 +121,64 @@ export default function App() {
     }, [interests, settings]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchEvents();
   }, [fetchEvents]);
 
-  const toggleInterest = (id: string) => {
-    setInterests(prev => prev.map(i => 
+  // Request notification permission
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  const toggleInterest = useCallback((id: string) => {
+    setInterests(prev => prev.map(i =>
       i.id === id ? { ...i, active: !i.active } : i
     ));
-  };
+  }, []);
 
-  const priorityEvent = events.find(e => e.isPriority) || events[0];
+  const toggleBookmark = useCallback((eventId: string) => {
+    setBookmarks(prev => prev.includes(eventId)
+      ? prev.filter(id => id !== eventId)
+      : [...prev, eventId]
+    );
+  }, []);
+
+  const shareEvent = useCallback(async (event: LocalEvent) => {
+    const shareData = {
+      title: event.title,
+      text: event.description,
+      url: window.location.href,
+    };
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+        toast.success('Event shared!');
+      } catch {
+        // User cancelled or error
+      }
+    } else {
+      // Fallback: copy to clipboard
+      try {
+        await navigator.clipboard.writeText(`${shareData.title}\n${shareData.text}\n${shareData.url}`);
+        toast.success('Link copied to clipboard!');
+      } catch {
+        toast.error('Failed to share event');
+      }
+    }
+  }, []);
+
+  const priorityEvent = useMemo(() => events.find(e => e.isPriority) || events[0], [events]);
+
+  // Show auth modal if not authenticated
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-zinc-950 text-zinc-100 flex items-center justify-center p-4">
+        <AuthModal isOpen={true} onClose={() => {}} />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 p-4 md:p-8 font-sans selection:bg-indigo-500 selection:text-white">
@@ -129,24 +202,38 @@ export default function App() {
              </h1>
            </div>
            <div className="hidden md:flex items-center gap-6">
-             <div className="bg-zinc-900 px-4 py-2 rounded-full border border-zinc-800 flex items-center gap-3">
-               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-               <span className="text-xs font-bold tracking-tight uppercase text-zinc-400">{settings.locationName}</span>
-             </div>
-             <button 
-               onClick={() => fetchEvents()}
-               onKeyDown={(e) => {
-                 if (e.key === 'Enter' || e.key === ' ') {
-                   e.preventDefault();
-                   fetchEvents();
-                 }
-               }}
-               tabIndex={0}
-               aria-label="Refresh events"
-               className="p-2.5 bg-zinc-900 border border-zinc-800 rounded-full hover:bg-zinc-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-             >
-               <RefreshCw size={18} className={isLoading ? 'animate-spin' : ''} aria-hidden="true" />
-             </button>
+              <div className="bg-zinc-900 px-4 py-2 rounded-full border border-zinc-800 flex items-center gap-3" aria-label={`Current location: ${settings.locationName}`}>
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" aria-hidden="true"></div>
+                <span className="text-xs font-bold tracking-tight uppercase text-zinc-400">{settings.locationName}</span>
+              </div>
+              <button
+                onClick={() => fetchEvents()}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    fetchEvents();
+                  }
+                }}
+                tabIndex={0}
+                aria-label="Refresh events"
+                className="p-2.5 bg-zinc-900 border border-zinc-800 rounded-full hover:bg-zinc-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+              >
+                <RefreshCw size={18} className={isLoading ? 'animate-spin' : ''} aria-hidden="true" />
+              </button>
+              <button
+                onClick={logout}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    logout();
+                  }
+                }}
+                tabIndex={0}
+                aria-label="Sign out"
+                className="p-2.5 bg-zinc-900 border border-zinc-800 rounded-full hover:bg-zinc-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+              >
+                <LogOut size={18} aria-hidden="true" />
+              </button>
            </div>
          </header>
 
@@ -233,16 +320,17 @@ export default function App() {
                  )}
                </div>
                <div className="relative mt-2">
-                 <input 
-                     type="range" 
-                     min="1" 
-                     max="10" 
-                     step="0.5"
-                     value={settings.radius} 
-                     onChange={(e) => setSettings(prev => ({ ...prev, radius: parseFloat(e.target.value) }))}
-                     className="w-full h-1.5 bg-zinc-800 rounded-full appearance-none cursor-pointer accent-indigo-500"
-                     disabled={isLoading}
-                 />
+                  <input
+                      type="range"
+                      min="1"
+                      max="10"
+                      step="0.5"
+                      value={settings.radius}
+                      onChange={(e) => setSettings(prev => ({ ...prev, radius: parseFloat(e.target.value) }))}
+                      aria-label={`Proximity radius: ${settings.radius} kilometers`}
+                      className="w-full h-1.5 bg-zinc-800 rounded-full appearance-none cursor-pointer accent-indigo-500"
+                      disabled={isLoading}
+                  />
                </div>
              </div>
              <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-tighter mt-4 flex items-center gap-2">
@@ -292,19 +380,52 @@ export default function App() {
               ) : (
                 <>
                   {events.slice(1, 3).map((event) => (
-                     <div key={event.id} className="bg-zinc-900 border border-zinc-800 rounded-[2rem] p-6 flex items-center gap-5 hover:border-zinc-700 transition-colors">
-                       <div className="w-16 h-16 bg-zinc-800 rounded-2xl flex items-center justify-center text-3xl shadow-inner shrink-0 leading-none">
-                         {event.category.includes('Gastronomía') ? '🍣' : event.category.includes('Música') ? '🎸' : '📍'}
-                       </div>
-                       <div className="overflow-hidden">
-                         <h4 className="font-black text-zinc-100 truncate tracking-tight">{event.title}</h4>
-                         <p className="text-zinc-500 text-xs line-clamp-1 mb-1">{event.description}</p>
-                         <span className="text-[10px] text-indigo-400 font-black uppercase tracking-widest flex items-center gap-1">
-                           <MapPin size={10} /> {event.distance}km
-                         </span>
-                       </div>
-                     </div>
-                  ))}
+                      <div key={event.id} className="bg-zinc-900 border border-zinc-800 rounded-[2rem] p-6 flex items-center gap-5 hover:border-zinc-700 transition-colors relative">
+                        <div className="w-16 h-16 bg-zinc-800 rounded-2xl flex items-center justify-center text-3xl shadow-inner shrink-0 leading-none">
+                          {event.category.includes('Gastronomía') ? '🍣' : event.category.includes('Música') ? '🎸' : '📍'}
+                        </div>
+                        <div className="overflow-hidden flex-1">
+                          <h4 className="font-black text-zinc-100 truncate tracking-tight">{event.title}</h4>
+                          <p className="text-zinc-500 text-xs line-clamp-1 mb-1">{event.description}</p>
+                          <span className="text-[10px] text-indigo-400 font-black uppercase tracking-widest flex items-center gap-1">
+                            <MapPin size={10} /> {event.distance}km
+                          </span>
+                        </div>
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => toggleBookmark(event.id)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                toggleBookmark(event.id);
+                              }
+                            }}
+                            tabIndex={0}
+                            aria-label={bookmarks.includes(event.id) ? 'Remove from bookmarks' : 'Add to bookmarks'}
+                            className="p-2 hover:bg-zinc-800 rounded-full transition-colors"
+                          >
+                            <Heart
+                              size={16}
+                              className={bookmarks.includes(event.id) ? 'fill-red-500 text-red-500' : 'text-zinc-500'}
+                            />
+                          </button>
+                          <button
+                            onClick={() => shareEvent(event)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                shareEvent(event);
+                              }
+                            }}
+                            tabIndex={0}
+                            aria-label="Share event"
+                            className="p-2 hover:bg-zinc-800 rounded-full transition-colors"
+                          >
+                            <Share size={16} className="text-zinc-500" />
+                          </button>
+                        </div>
+                      </div>
+                   ))}
                   {events.length < 2 && (
                     <div className="md:col-span-2 flex items-center justify-center border-2 border-dashed border-zinc-800 rounded-[2rem] text-zinc-600 text-sm italic py-8">
                       Selecciona más intereses para llenar el radar
@@ -336,5 +457,7 @@ export default function App() {
       </div>
     </div>
   );
-}
+});
+
+export default App;
 
