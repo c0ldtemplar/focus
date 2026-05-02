@@ -81,6 +81,7 @@ if [ "$PROD_MODE" = true ]; then
   # Deploy to Raspberry Pi
   log_info "Deploying to $REMOTE_HOST..."
    sshpass -p 'BB2024' scp -o StrictHostKeyChecking=no docker-compose.yml "$REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH/"
+   sshpass -p 'BB2024' scp -o StrictHostKeyChecking=no package.json "$REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH/"
    sshpass -p 'BB2024' scp -o StrictHostKeyChecking=no package-lock.json "$REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH/"
    sshpass -p 'BB2024' scp -o StrictHostKeyChecking=no -r dist "$REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH/"
    sshpass -p 'BB2024' scp -o StrictHostKeyChecking=no Dockerfile "$REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH/"
