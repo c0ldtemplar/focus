@@ -14,7 +14,7 @@ RUN npm install --production=false && \
 COPY . .
 
 # Build the application
-RUN ROLLUP_SKIP_NATIVE=true npm run build
+RUN npm run build
 
 # Production stage
 FROM node:20-alpine
