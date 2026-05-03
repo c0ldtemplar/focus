@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import {
   User,
   signInWithEmailAndPassword,
@@ -35,49 +35,116 @@ interface AuthProviderProps {
   children: React.ReactNode;
 }
 
+const isFirebaseConfigured = !!(process.env.FIREBASE_API_KEY && process.env.FIREBASE_API_KEY !== 'your_firebase_api_key');
+
+const DUMMY_USERS = [
+  { id: '1', email: 'test@focus.local', password: 'test123', name: 'Usuario Prueba' },
+  { id: '2', email: 'demo@focus.local', password: 'demo123', name: 'Demo Usuario' },
+];
+
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    if (!isFirebaseConfigured) {
+      try {
+        const saved = localStorage.getItem('focus-demo-user');
+        return saved ? JSON.parse(saved) : null;
+      } catch {
+        localStorage.removeItem('focus-demo-user');
+        return null;
+      }
+    }
+    return null;
+  });
+
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
+    if (!isFirebaseConfigured) {
+      // No-op, keep loading as false would cause effect setState
+      return;
+    }
+    const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
+      setUser(fbUser);
       setLoading(false);
     });
-
     return unsubscribe;
   }, []);
 
-  const signIn = async (email: string, password: string) => {
+  // If Firebase not configured, loading is false after initial state
+  const [hasChecked, setHasChecked] = useState(false);
+  useEffect(() => {
+    if (!isFirebaseConfigured) {
+      const t = setTimeout(() => setHasChecked(true), 0);
+      return () => clearTimeout(t);
+    }
+  }, []);
+
+  const effectiveLoading = isFirebaseConfigured ? loading : !hasChecked;
+
+  const signIn = useCallback(async (email: string, password: string) => {
+    if (!isFirebaseConfigured) {
+      await new Promise(resolve => setTimeout(resolve, 600));
+      const foundUser = DUMMY_USERS.find(
+        u => u.email.toLowerCase() === email.toLowerCase() && u.password === password
+      );
+      if (!foundUser) {
+        const userExists = DUMMY_USERS.some(u => u.email.toLowerCase() === email.toLowerCase());
+        throw new Error(userExists ? 'Contraseña incorrecta' : 'Usuario no encontrado');
+      }
+      const userData = { id: foundUser.id, email: foundUser.email, name: foundUser.name, providerId: 'demo' } as User;
+      localStorage.setItem('focus-demo-user', JSON.stringify(userData));
+      setUser(userData);
+      return;
+    }
     await signInWithEmailAndPassword(auth, email, password);
-  };
+  }, []);
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = useCallback(async (email: string, password: string) => {
+    if (!isFirebaseConfigured) {
+      await new Promise(resolve => setTimeout(resolve, 600));
+      if (password.length < 6) throw new Error('La contraseña debe tener al menos 6 caracteres');
+      if (DUMMY_USERS.some(u => u.email.toLowerCase() === email.toLowerCase())) {
+        throw new Error('El usuario ya existe. Por favor, inicia sesión.');
+      }
+      throw new Error('Registro temporalmente desactivado. Usa credenciales de prueba.');
+    }
     await createUserWithEmailAndPassword(auth, email, password);
-  };
+  }, []);
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = useCallback(async () => {
+    if (!isFirebaseConfigured) {
+      await new Promise(resolve => setTimeout(resolve, 600));
+      const userData = { id: 'google-1', email: 'google.user@focus.local', name: 'Usuario Google', providerId: 'google.demo' } as User;
+      localStorage.setItem('focus-demo-user', JSON.stringify(userData));
+      setUser(userData);
+      return;
+    }
     const provider = new GoogleAuthProvider();
     await signInWithPopup(auth, provider);
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
+    if (!isFirebaseConfigured) {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      localStorage.removeItem('focus-demo-user');
+      setUser(null);
+      return;
+    }
     await signOut(auth);
-  };
+  }, []);
 
-  const resetPassword = async (email: string) => {
+  const resetPassword = useCallback(async (email: string) => {
+    if (!isFirebaseConfigured) {
+      await new Promise(resolve => setTimeout(resolve, 600));
+      if (!DUMMY_USERS.some(u => u.email.toLowerCase() === email.toLowerCase())) {
+        throw new Error('No existe una cuenta con ese correo');
+      }
+      throw new Error('Entorno de desarrollo: usa test@focus.local / test123');
+    }
     await sendPasswordResetEmail(auth, email);
-  };
+  }, []);
 
-  const value = {
-    user,
-    loading,
-    signIn,
-    signUp,
-    signInWithGoogle,
-    logout,
-    resetPassword,
-  };
+  const value = { user, loading: effectiveLoading, signIn, signUp, signInWithGoogle, logout, resetPassword };
 
   return (
     <AuthContext.Provider value={value}>
