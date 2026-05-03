@@ -8,7 +8,7 @@ ENV_FILE=".env.local"
 COMPOSE_FILE="docker-compose.yml"
 REMOTE_USER="coldtemplar"
 REMOTE_HOST="192.168.4.7"
-REMOTE_PATH="/opt/tea-connect/app"
+REMOTE_PATH="/home/coldtemplar/focus"
 
 # Colors for output
 RED='\033[0;31m'
@@ -39,7 +39,7 @@ done
 # Check prerequisites
 log_info "Checking prerequisites..."
 command -v docker >/dev/null 2>&1 || { log_error "docker is not installed"; exit 1; }
-command -v docker-compose >/dev/null 2>&1 || { log_error "docker-compose is not installed"; exit 1; }
+docker compose version >/dev/null 2>&1 || { log_error "docker compose is not available"; exit 1; }
 
 # Validate environment
 if [ ! -f "$ENV_FILE" ]; then
@@ -69,19 +69,25 @@ set +a
 
 if [ "$PROD_MODE" = true ]; then
   log_info "Production deployment to Raspberry Pi..."
-  
+
+  # Create remote directory
+  log_info "Creating remote directory..."
+  sshpass -p 'BB2024' ssh -o StrictHostKeyChecking=no "$REMOTE_USER@$REMOTE_HOST" "mkdir -p $REMOTE_PATH"
+
   # Build Docker image
   log_info "Building Docker image..."
   docker compose build
   
   # Deploy to Raspberry Pi
   log_info "Deploying to $REMOTE_HOST..."
-  sshpass -p 'BB2024' scp -o StrictHostKeyChecking=no docker-compose.yml "$REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH/"
-  sshpass -p 'BB2024' scp -o StrictHostKeyChecking=no -r dist "$REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH/"
-  sshpass -p 'BB2024' scp -o StrictHostKeyChecking=no Dockerfile "$REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH/"
-  sshpass -p 'BB2024' scp -o StrictHostKeyChecking=no server.js "$REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH/"
-  sshpass -p 'BB2024' scp -o StrictHostKeyChecking=no nginx.conf "$REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH/"
-  sshpass -p 'BB2024' scp -o StrictHostKeyChecking=no "$ENV_FILE" "$REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH/.env.local"
+   sshpass -p 'BB2024' scp -o StrictHostKeyChecking=no docker-compose.yml "$REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH/"
+   sshpass -p 'BB2024' scp -o StrictHostKeyChecking=no package.json "$REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH/"
+   sshpass -p 'BB2024' scp -o StrictHostKeyChecking=no package-lock.json "$REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH/"
+   sshpass -p 'BB2024' scp -o StrictHostKeyChecking=no -r dist "$REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH/"
+   sshpass -p 'BB2024' scp -o StrictHostKeyChecking=no Dockerfile "$REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH/"
+   sshpass -p 'BB2024' scp -o StrictHostKeyChecking=no server.js "$REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH/"
+   sshpass -p 'BB2024' scp -o StrictHostKeyChecking=no nginx.conf "$REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH/"
+   sshpass -p 'BB2024' scp -o StrictHostKeyChecking=no "$ENV_FILE" "$REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH/.env.local"
   
   # Restart services on Raspberry Pi
   sshpass -p 'BB2024' ssh -o StrictHostKeyChecking=no "$REMOTE_USER@$REMOTE_HOST" "

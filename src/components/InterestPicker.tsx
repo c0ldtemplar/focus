@@ -8,7 +8,7 @@ interface Props {
   onToggle: (id: string) => void;
 }
 
-export const InterestPicker: React.FC<Props> = ({ interests, onToggle }) => {
+export const InterestPicker: React.FC<Props> = React.memo(({ interests, onToggle }) => {
   return (
     <div className="flex flex-wrap gap-2" role="group" aria-label="Interest filters">
       {interests.map((interest) => {
@@ -35,10 +35,10 @@ export const InterestPicker: React.FC<Props> = ({ interests, onToggle }) => {
             }`}
           >
             <Icon size={16} aria-hidden="true" />
-            <span className="sr-only">{interest.name}</span>
+            <span>{interest.name}</span>
           </motion.button>
         );
       })}
     </div>
   );
-};
+});
