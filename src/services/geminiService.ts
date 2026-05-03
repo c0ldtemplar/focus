@@ -75,24 +75,23 @@ const validateEventData = (data: unknown): LocalEvent[] => {
       throw new Error(`Invalid isPriority in event at index ${index}`);
     }
 
-    return {
-      id: String(item.id),
-      title: String(item.title),
-      description: String(item.description),
-      category: String(item.category),
-      date: String(item.date),
-      location: {
-        lat: Number(location.lat),
-        lng: Number(location.lng),
-        address: String(location.address),
-        neighborhood: String(location.neighborhood)
-      },
-      distance: Number(item.distance),
-      source: item.source as LocalEvent["source"],
-      isPriority: Boolean(item.isPriority),
-      // Optional imageUrl
-      imageUrl: item.imageUrl ? String(item.imageUrl) : undefined
-    };
+     return {
+       id: String(item.id),
+       title: String(item.title),
+       description: String(item.description),
+       category: String(item.category),
+       date: String(item.date),
+       location: {
+         lat: Number(location.lat),
+         lng: Number(location.lng),
+         address: String(location.address),
+         neighborhood: String(location.neighborhood)
+       },
+       distance: Number(item.distance),
+       source: item.source as LocalEvent["source"],
+       isPriority: Boolean(item.isPriority),
+       ...(item.imageUrl ? { imageUrl: String(item.imageUrl) } : {}),
+     };
   });
 };
 
