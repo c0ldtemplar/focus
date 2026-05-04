@@ -1,6 +1,6 @@
 # Instrucciones de Inicio - Focus AI Studio
 
-## ✅ Estadoactual: Servidor corriendo en puerto 3000
+## ✅ Estado actual: Servidor corriendo en puerto 3000
 
 El servidor de producción está **activo** y sirviendo la aplicación.
 
