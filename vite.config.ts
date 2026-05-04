@@ -15,6 +15,17 @@ export default defineConfig(({mode}) => {
         '@': path.resolve(__dirname, '.'),
       },
     },
+    build: {
+      chunkSizeWarningLimit: 600,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'map': ['leaflet', 'react-leaflet', 'react-leaflet-markercluster'],
+            'gemini': ['@google/genai'],
+          },
+        },
+      },
+    },
     server: {
       host: '0.0.0.0',
       port: 4000,
