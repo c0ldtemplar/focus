@@ -13,6 +13,15 @@ services:
     environment:
       - NODE_ENV=production
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - SEATGEEK_CLIENT_ID=${SEATGEEK_CLIENT_ID:-}
+      - SEATGEEK_CLIENT_SECRET=${SEATGEEK_CLIENT_SECRET:-}
+      # Firebase (opcional - modo demo si no está configurado)
+      - FIREBASE_API_KEY=${FIREBASE_API_KEY:-}
+      - FIREBASE_AUTH_DOMAIN=${FIREBASE_AUTH_DOMAIN:-}
+      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID:-}
+      - FIREBASE_STORAGE_BUCKET=${FIREBASE_STORAGE_BUCKET:-}
+      - FIREBASE_MESSAGING_SENDER_ID=${FIREBASE_MESSAGING_SENDER_ID:-}
+      - FIREBASE_APP_ID=${FIREBASE_APP_ID:-}
     volumes:
       - focus-app-data:/app/data
     deploy:

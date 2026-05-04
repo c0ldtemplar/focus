@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { Interest, UserSettings, LocalEvent } from '../types';
 import { INITIAL_INTERESTS } from '../constants';
-import { curateLocalEvents } from '../services/geminiService';
+import { curateLocalEvents } from '../services/eventService';
 import { InterestPicker } from '../components/InterestPicker';
 import { useAuth } from '../contexts/AuthContext';
 

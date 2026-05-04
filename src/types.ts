@@ -16,7 +16,7 @@ export interface LocalEvent {
     neighborhood: string;
   };
   distance: number; // in km
-  source: 'scout' | 'community' | 'official';
+  source: 'scout' | 'community' | 'official' | 'seatgeek' | 'gemini';
   imageUrl?: string;
   isPriority: boolean;
 }

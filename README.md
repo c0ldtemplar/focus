@@ -18,7 +18,8 @@ Focus es una aplicación de descubrimiento de eventos locales que utiliza IA par
 ### Prerrequisitos
 - Node.js 20+
 - npm o yarn
-- [Opcional] Gemini API Key para eventos reales
+- [Opcional] API Key de SeatGeek para eventos reales (gratis)
+- [Opcional] Gemini API Key como fallback
 
 ### Pasos
 
@@ -57,8 +58,37 @@ La aplicación estará disponible en `http://localhost:3000`
 - **Eventos secundarios**: Grid de 2 columnas con eventos adicionales
 - **Mapa**: Ubicación de todos los eventos en el área seleccionada
 
-### Sin API Key de Gemini
-La aplicación funciona perfectamente sin la integración de Gemini. Solo necesitas configurar `GEMINI_API_KEY` en `.env.local` para obtener eventos reales.
+### APIs de Eventos (Configuración)
+
+Focus ahora soporta múltiples fuentes de eventos:
+
+#### 1. SeatGeek API (Recomendado - Gratis)
+Fuente principal con eventos reales: conciertos, deportes, teatro.
+
+1. Regístrate gratis: https://platform.seatgeek.com/
+2. Crea una app y obtén tu `client_id`
+3. Agrega a `.env`:
+   ```env
+   SEATGEEK_CLIENT_ID=tu_client_id_aqui
+   ```
+4. La app buscará automáticamente eventos en tu radio configurado
+
+**Nota:** Sin `SEATGEEK_CLIENT_ID`, la app usa solo fallback de Gemini IA.
+
+#### 2. Gemini AI (Fallback - Opcional)
+Genera sugerencias inteligentes locales cuando las APIs no tienen datos.
+
+```env
+GEMINI_API_KEY=tu_clave_gemini  # https://ai.google.dev/
+```
+
+### Sin API Keys Configuradas
+La aplicación funciona en **modo demo**:
+- Autenticación con usuarios de prueba (`test@focus.local` / `test123`)
+- Eventos generados por IA (Gemini) solo si `GEMINI_API_KEY` está configurada
+- Si no hay `SEATGEEK_CLIENT_ID`, se usan datos de ejemplo hasta que configures la API
+
+Para eventos reales de SeatGeek, configura `SEATGEEK_CLIENT_ID` en `.env`.
 
 ## Estructura del Proyecto
 
@@ -66,14 +96,22 @@ La aplicación funciona perfectamente sin la integración de Gemini. Solo necesi
 src/
 ├── components/          # Componentes React
 │   ├── ErrorBoundary.tsx
-│   ├── EventFeed.tsx
 │   ├── InterestPicker.tsx
-│   └── MapOverlay.tsx
+│   ├── MapOverlay.tsx
+│   └── Auth/           # Componentes de autenticación
+├── contexts/           # Contextos (AuthContext)
+├── pages/              # Páginas con routing
+│   ├── LandingPage.tsx
+│   ├── LoginPage.tsx
+│   └── DashboardPage.tsx
 ├── services/           # Servicios y APIs
-│   └── geminiService.ts
+│   ├── eventService.ts      # Agregador principal (SeatGeek + Gemini)
+│   └── geminiFallback.ts    # Fallback con Gemini IA
+├── lib/                # Librerías externas
+│   └── firebase.ts
 ├── types.ts            # Tipos TypeScript
 ├── constants.ts        # Constantes y configuraciones
-├── App.tsx            # Componente principal
+├── App.tsx            # Enrutador principal
 └── main.tsx           # Punto de entrada
 ```
 
@@ -86,17 +124,19 @@ src/
 
 ## Despliegue en Raspberry Pi
 
-Ver [DEPLOYMENT.md](DEPLOYMENT.md) para instrucciones detalladas.
+Ver [DEPLOY_RASPBERRY.md](DEPLOY_RASPBERRY.md) para instrucciones detalladas de instalación y configuración en Raspberry Pi (ARM64).
 
 ## Tecnologías Utilizadas
 
-- **Frontend**: React 19, Vite, TypeScript
+- **Frontend**: React 19, Vite, TypeScript, React Router DOM
 - **Estilos**: Tailwind CSS
 - **Mapas**: Leaflet, React-Leaflet
-- **Animaciones**: Motion
-- **IA**: Google Gemini API
+- **Animaciones**: Motion (Framer Motion)
+- **IA**: Google Gemini API (fallback)
+- **Eventos APIs**: SeatGeek API (principal), Gemini AI (fallback)
 - **Servidor**: Express.js
-- **Contenedores**: Docker
+- **Contenedores**: Docker & Docker Compose
+- **Autenticación**: Firebase Auth (opcional) / Modo Demo
 
 ## Licencia
 
