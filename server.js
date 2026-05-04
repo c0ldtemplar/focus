@@ -8,63 +8,35 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Serve static files from dist with correct MIME types
-app.use(express.static(path.join(__dirname, 'dist'), {
-  maxAge: '1y',
-  etag: true,
-  lastModified: true,
-  setHeaders: (res, filePath) => {
-    // Set correct MIME types for JS modules
-    if (filePath.endsWith('.js')) {
-      res.setHeader('Content-Type', 'application/javascript');
-    }
-    // HTML no cache
-    if (filePath.endsWith('.html')) {
-      res.setHeader('Cache-Control', 'no-cache');
-    }
-  }
-}));
+// Serve static files first (important: before SPA fallback)
+app.use(express.static(path.join(__dirname, 'dist')));
 
-// Health check endpoint
+// Health check
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Serve index.html for all other routes (SPA fallback)
-// IMPORTANTE: Esta ruta debe estar DESPUÉS de express.static
+// SPA fallback - catch all other routes
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
 const server = app.listen(PORT, '0.0.0.0', () => {
-  console.log(`✅ Focus AI Studio server running on port ${PORT}`);
-  console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🌐 URL: http://localhost:${PORT}`);
+  console.log(`✅ Server running on port ${PORT}`);
 });
 
 server.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
-    console.error(`❌ Port ${PORT} is already in use`);
-    console.log(`💡 Run: lsof -ti:${PORT} | xargs kill -9`);
-  } else {
-    console.error('❌ Server error:', err);
+    console.error(`Port ${PORT} in use. Kill it with: lsof -ti:${PORT} | xargs kill -9`);
   }
   process.exit(1);
 });
 
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('🛑 SIGTERM received, shutting down gracefully');
-  server.close(() => {
-    console.log('✅ Server closed');
-    process.exit(0);
-  });
-});
-
 process.on('SIGINT', () => {
-  console.log('\n🛑 SIGINT received, shutting down gracefully');
-  server.close(() => {
-    console.log('✅ Server closed');
-    process.exit(0);
-  });
+  console.log('\nShutting down...');
+  server.close(() => process.exit(0));
+});
+process.on('SIGTERM', () => {
+  console.log('\nShutting down...');
+  server.close(() => process.exit(0));
 });
