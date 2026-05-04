@@ -1,7 +1,6 @@
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import http from 'http';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -31,7 +30,35 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Focus AI Studio server running on port ${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+const server = app.listen(PORT, '0.0.0.0', () => {
+  console.log(`✅ Focus AI Studio server running on port ${PORT}`);
+  console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🌐 URL: http://localhost:${PORT}`);
+});
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`❌ Port ${PORT} is already in use`);
+    console.log(`💡 Run: lsof -ti:${PORT} | xargs kill -9`);
+  } else {
+    console.error('❌ Server error:', err);
+  }
+  process.exit(1);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('🛑 SIGTERM received, shutting down gracefully');
+  server.close(() => {
+    console.log('✅ Server closed');
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', () => {
+  console.log('\n🛑 SIGINT received, shutting down gracefully');
+  server.close(() => {
+    console.log('✅ Server closed');
+    process.exit(0);
+  });
 });
