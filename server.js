@@ -8,13 +8,18 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Serve static files from dist
+// Serve static files from dist with correct MIME types
 app.use(express.static(path.join(__dirname, 'dist'), {
   maxAge: '1y',
   etag: true,
   lastModified: true,
-  setHeaders: (res, path) => {
-    if (path.endsWith('.html')) {
+  setHeaders: (res, filePath) => {
+    // Set correct MIME types for JS modules
+    if (filePath.endsWith('.js')) {
+      res.setHeader('Content-Type', 'application/javascript');
+    }
+    // HTML no cache
+    if (filePath.endsWith('.html')) {
       res.setHeader('Cache-Control', 'no-cache');
     }
   }
@@ -26,6 +31,7 @@ app.get('/health', (req, res) => {
 });
 
 // Serve index.html for all other routes (SPA fallback)
+// IMPORTANTE: Esta ruta debe estar DESPUÉS de express.static
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
