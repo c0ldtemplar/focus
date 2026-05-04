@@ -1,4 +1,10 @@
 import '@testing-library/jest-dom'
+import * as React from 'react'
+
+// React 19 compatibility: make act available globally
+if (!React.act) {
+  React.act = () => {}
+}
 
 // Mock IntersectionObserver for framer-motion
 class MockIntersectionObserver {

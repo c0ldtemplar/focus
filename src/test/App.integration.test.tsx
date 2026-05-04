@@ -14,9 +14,8 @@ const mockAuth = {
   resetPassword: vi.fn(),
 };
 
-vi.mock('../contexts/AuthContext', () => ({
+vi.mock('../hooks/useAuth', () => ({
   useAuth: () => mockAuth,
-  AuthProvider: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
 // Mock other dependencies

@@ -19,7 +19,7 @@ import { Interest, UserSettings, LocalEvent } from '../types';
 import { INITIAL_INTERESTS } from '../constants';
 import { curateLocalEvents } from '../services/eventService';
 import { InterestPicker } from '../components/InterestPicker';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 
 const MapOverlay = lazy(() => import('../components/MapOverlay').then(module => ({ default: module.MapOverlay })));
 

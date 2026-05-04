@@ -10,6 +10,7 @@ import {
   sendPasswordResetEmail,
 } from 'firebase/auth';
 import { auth } from '../lib/firebase';
+import { isFirebaseConfigured, DUMMY_USERS } from '../lib/firebaseConfig';
 
 interface AuthContextType {
   user: User | null;
@@ -23,24 +24,9 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
-
 interface AuthProviderProps {
   children: React.ReactNode;
 }
-
-const isFirebaseConfigured = !!(process.env.FIREBASE_API_KEY && process.env.FIREBASE_API_KEY !== 'your_firebase_api_key');
-
-const DUMMY_USERS = [
-  { id: '1', email: 'test@focus.local', password: 'test123', name: 'Usuario Prueba' },
-  { id: '2', email: 'demo@focus.local', password: 'demo123', name: 'Demo Usuario' },
-];
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(() => {
@@ -151,4 +137,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       {children}
     </AuthContext.Provider>
   );
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 };
