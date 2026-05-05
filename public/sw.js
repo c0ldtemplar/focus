@@ -51,6 +51,8 @@ self.addEventListener('fetch', event => {
   const { request } = event;
   const url = new URL(request.url);
 
+  if (!['http:', 'https:'].includes(url.protocol)) return;
+
   // External APIs: network-first, fall back to cache (weather, seatgeek, gemini)
   if (
     url.hostname === 'api.open-meteo.com' ||
@@ -93,7 +95,7 @@ async function cacheFirst(request, cacheName) {
   const cached = await caches.match(request);
   if (cached) return cached;
   const response = await fetch(request);
-  if (response.ok) {
+  if (response.ok && isHttpRequest(request)) {
     const cache = await caches.open(cacheName);
     cache.put(request, response.clone());
   }
@@ -103,7 +105,7 @@ async function cacheFirst(request, cacheName) {
 async function networkFirstWithCache(request, cacheName, maxAgeMs = Infinity) {
   try {
     const response = await fetch(request);
-    if (response.ok) {
+    if (response.ok && isHttpRequest(request)) {
       const cache = await caches.open(cacheName);
       cache.put(request, response.clone());
     }
@@ -121,6 +123,11 @@ async function networkFirstWithCache(request, cacheName, maxAgeMs = Infinity) {
     }
     return new Response(null, { status: 503, statusText: 'Offline' });
   }
+}
+
+function isHttpRequest(request) {
+  const url = new URL(request.url);
+  return ['http:', 'https:'].includes(url.protocol);
 }
 
 // ── Push notifications ────────────────────────────────────────────────────────
