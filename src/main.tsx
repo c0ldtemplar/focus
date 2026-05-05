@@ -6,8 +6,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { AuthProvider } from './contexts/AuthContext';
 import './index.css';
 
-// Register service worker
-if ('serviceWorker' in navigator) {
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js')
       .then((registration) => {
@@ -15,6 +14,26 @@ if ('serviceWorker' in navigator) {
       })
       .catch((registrationError) => {
         console.log('SW registration failed: ', registrationError);
+      });
+  });
+}
+
+if (import.meta.env.DEV && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.getRegistrations()
+      .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
+      .catch((error) => {
+        console.log('SW cleanup failed: ', error);
+      });
+
+    caches.keys()
+      .then((cacheNames) => Promise.all(
+        cacheNames
+          .filter((cacheName) => cacheName.startsWith('focus-'))
+          .map((cacheName) => caches.delete(cacheName)),
+      ))
+      .catch((error) => {
+        console.log('Cache cleanup failed: ', error);
       });
   });
 }

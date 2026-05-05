@@ -4,9 +4,15 @@ const API_CACHE    = 'focus-api-v2';
 const ALL_CACHES   = [SHELL_CACHE, STATIC_CACHE, API_CACHE];
 
 const APP_SHELL = ['/', '/index.html', '/manifest.json'];
+const IS_LOCALHOST = ['localhost', '127.0.0.1', '0.0.0.0'].includes(self.location.hostname);
 
 // ── Install: pre-cache app shell ──────────────────────────────────────────────
 self.addEventListener('install', event => {
+  if (IS_LOCALHOST) {
+    event.waitUntil(self.skipWaiting());
+    return;
+  }
+
   event.waitUntil(
     caches.open(SHELL_CACHE)
       .then(cache => cache.addAll(APP_SHELL))
@@ -16,6 +22,17 @@ self.addEventListener('install', event => {
 
 // ── Activate: purge old caches ────────────────────────────────────────────────
 self.addEventListener('activate', event => {
+  if (IS_LOCALHOST) {
+    event.waitUntil(
+      caches.keys()
+        .then(names => Promise.all(names.filter(name => name.startsWith('focus-')).map(name => caches.delete(name))))
+        .then(() => self.registration.unregister())
+        .then(() => self.clients.matchAll({ type: 'window' }))
+        .then(clients => Promise.all(clients.map(client => client.navigate(client.url))))
+    );
+    return;
+  }
+
   event.waitUntil(
     caches.keys().then(names =>
       Promise.all(
@@ -29,6 +46,8 @@ self.addEventListener('activate', event => {
 
 // ── Fetch strategy ────────────────────────────────────────────────────────────
 self.addEventListener('fetch', event => {
+  if (IS_LOCALHOST) return;
+
   const { request } = event;
   const url = new URL(request.url);
 
