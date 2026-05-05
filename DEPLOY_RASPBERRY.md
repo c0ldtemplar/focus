@@ -183,6 +183,12 @@ curl http://localhost:3000/health
 
 ## 🐛 Solución de problemas
 
+Para diagnostico de DNS, Cloudflare, Nginx Proxy Manager y puertos externos/internos, ver:
+
+```text
+RASPBERRY_NETWORK_DIAGNOSTICS_2026.md
+```
+
 ### Puerto 3000 en uso
 ```bash
 # Ver qué proceso usa el puerto
