@@ -14,7 +14,8 @@ const mockAuth = {
   resetPassword: vi.fn(),
 };
 
-vi.mock('../hooks/useAuth', () => ({
+vi.mock('../contexts/AuthContext', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../contexts/AuthContext')>()),
   useAuth: () => mockAuth,
 }));
 

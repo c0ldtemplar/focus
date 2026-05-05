@@ -24,7 +24,7 @@ import { curateLocalEvents } from '../services/eventService';
 import { InterestPicker } from '../components/InterestPicker';
 import { WeeklyAgenda } from '../components/WeeklyAgenda';
 import { EventDetailModal } from '../components/EventDetailModal';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../contexts/AuthContext';
 
 const MapOverlay = lazy(() =>
   import('../components/MapOverlay').then(m => ({ default: m.MapOverlay }))
