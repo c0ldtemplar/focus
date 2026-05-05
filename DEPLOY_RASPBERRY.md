@@ -79,6 +79,7 @@ curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
 source ~/.bashrc
 nvm install 20
 nvm use 20
+node -v  # Debe ser v20.x o superior
 ```
 
 ### 2. Clonar y configurar
@@ -93,8 +94,8 @@ cp .env.example .env
 ### 3. Instalar y levantar
 
 ```bash
-# Instalar dependencias
-npm install
+# Instalar dependencias exactas desde package-lock.json
+npm ci
 
 # Build de producción
 npm run build
@@ -131,6 +132,9 @@ sudo systemctl status focus
 # Ver logs
 sudo journalctl -u focus -f
 ```
+
+> Ajusta `User`, `WorkingDirectory` y `ExecStart` si tu usuario o ruta no son `pi` y `/home/pi/focus`.
+> Para ver el binario exacto de Node en tu Raspberry: `which node`.
 
 ## 🔧 Configuración de APIs
 
@@ -226,9 +230,29 @@ docker compose up -d
 O con systemd:
 ```bash
 git pull origin main
-npm install
+rm -rf node_modules
+npm ci
 npm run build
 sudo systemctl restart focus
+```
+
+Si `npm run build` falla con un error de `@jridgewell/trace-mapping` o exports ESM, casi siempre es un `node_modules` inconsistente. Reinstala limpio:
+
+```bash
+rm -rf node_modules package-lock.json
+git checkout -- package-lock.json
+npm ci
+npm run build
+```
+
+Si `sudo systemctl restart focus` devuelve `Unit focus.service not found`, el servicio todavía no existe o tiene otro nombre:
+
+```bash
+systemctl list-unit-files | grep -i focus
+sudo nano /etc/systemd/system/focus.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now focus
+sudo systemctl status focus
 ```
 
 ## 📊 Monitoreo
