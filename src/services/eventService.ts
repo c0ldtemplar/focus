@@ -8,6 +8,7 @@
 
 import { LocalEvent, Interest, UserSettings } from "../types";
 import { curateLocalEvents as fetchGeminiEvents } from "./geminiFallback";
+import { fetchWeatherForecast } from "./weatherService";
 
 // ============== API Configuration ==============
 
@@ -30,6 +31,43 @@ const SOURCES: Record<string, EventSourceConfig> = {
 // SeatGeek API configuration
 const SEATGEEK_BASE_URL = "https://api.seatgeek.com/2";
 const SEATGEEK_CLIENT_ID = process.env.SEATGEEK_CLIENT_ID || "";
+
+// ============== Affinity + Outdoor ==============
+
+const OUTDOOR_KEYWORDS = ['callejero', 'plaza', 'parque', 'ciclovía', 'ciclovias', 'feria', 'festival', 'aire libre', 'outdoor', 'bicicleta'];
+
+function normalize(s: string): string {
+  return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
+function detectOutdoor(event: LocalEvent): boolean {
+  const text = normalize(`${event.title} ${event.description} ${event.category} ${event.location.address}`);
+  return OUTDOOR_KEYWORDS.some(kw => text.includes(normalize(kw)));
+}
+
+function computeAffinityScore(event: LocalEvent, interests: Interest[]): number {
+  const active = interests.filter(i => i.active);
+  if (active.length === 0) return 0;
+
+  const cat = normalize(event.category);
+  let score = 0;
+
+  for (const interest of active) {
+    const n = normalize(interest.name);
+    const firstWord = n.split(' ')[0];
+    if (n.includes(cat) || cat.includes(firstWord)) {
+      score = Math.max(score, 85);
+    } else {
+      const iWords = n.split(/\s+/).filter(w => w.length > 3);
+      const eWords = cat.split(/\s+/).filter(w => w.length > 3);
+      const overlap = iWords.filter(w => eWords.some(e => e.includes(w) || w.includes(e))).length;
+      if (overlap > 0) score = Math.max(score, 60 + overlap * 10);
+    }
+  }
+
+  const proxBonus = Math.max(0, Math.round(15 * (1 - event.distance / 10)));
+  return Math.min(100, Math.max(20, score + proxBonus));
+}
 
 // ============== Cache ==============
 
@@ -150,6 +188,7 @@ async function fetchSeatGeekEvents(
         description: event.performers.map((p) => p.name).join(", "),
         category: mapSeatGeekTypeToCategory(event.type, event.performers),
         date: formatDate(event.datetime_utc),
+        dateISO: event.datetime_utc.split('T')[0],
         location: {
           lat: event.venue.location.lat,
           lng: event.venue.location.lon,
@@ -281,27 +320,34 @@ export async function curateLocalEvents(
     }
   });
 
-  // Sort by distance and priority
+  // Sort by priority then distance
   allEvents.sort((a, b) => {
     if (a.isPriority && !b.isPriority) return -1;
     if (!a.isPriority && b.isPriority) return 1;
     return a.distance - b.distance;
   });
 
-  // Remove duplicates (same event from different sources)
+  // Deduplicate
   const uniqueEvents = allEvents.filter(
-    (event, index, self) =>
-      index === self.findIndex((e) => e.id === event.id)
+    (event, index, self) => index === self.findIndex((e) => e.id === event.id)
   );
 
-  // Limit to 6 events
-  const limited = uniqueEvents.slice(0, 6);
+  // Limit to 15 for weekly agenda coverage
+  const limited = uniqueEvents.slice(0, 15);
+
+  // Enrich: affinity, outdoor, weather
+  const weatherMap = await fetchWeatherForecast(settings.location[0], settings.location[1]);
+
+  for (const event of limited) {
+    event.affinityScore = computeAffinityScore(event, activeInterests);
+    event.isOutdoor = detectOutdoor(event);
+    if (event.isOutdoor && event.dateISO && weatherMap[event.dateISO]) {
+      event.weather = weatherMap[event.dateISO];
+    }
+  }
 
   // Cache result
-  cache.set(cacheKey, {
-    data: limited,
-    timestamp: Date.now(),
-  });
+  cache.set(cacheKey, { data: limited, timestamp: Date.now() });
 
   return limited;
 }

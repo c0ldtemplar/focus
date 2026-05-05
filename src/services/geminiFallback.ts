@@ -44,20 +44,25 @@ export async function curateLocalEvents(
     return cached.data;
   }
 
+  const todayISO = new Date().toISOString().split('T')[0];
+
   const prompt = `
     You are a "Hyper-Local Scout". Generate 3-5 realistic local events occurring in the next 7 days near ${settings.locationName}.
-    
+
     Interests: ${activeInterests.map((i) => i.name).join(", ")}
     Radius: ${settings.radius} km
-    
+    Today: ${todayISO}
+
     Return JSON array:
     [
       {
         "id": "unique-string",
         "title": "string",
         "description": "string",
-        "category": "string",
-        "date": "string (human readable)",
+        "category": "string (match one of the user interests)",
+        "date": "string (human readable in Spanish, e.g. 'viernes 9 de mayo, 19:00')",
+        "dateISO": "YYYY-MM-DD (ISO date of the event, within next 7 days from today)",
+        "isOutdoor": boolean,
         "location": {
           "lat": number,
           "lng": number,
@@ -66,7 +71,8 @@ export async function curateLocalEvents(
         },
         "distance": number (0-${settings.radius}),
         "source": "gemini",
-        "isPriority": boolean
+        "isPriority": boolean,
+        "whyRecommended": "1 sentence in Spanish explaining why this matches the user's interests"
       }
     ]
   `;
@@ -94,6 +100,8 @@ export async function curateLocalEvents(
         description: String(item.description),
         category: String(item.category),
         date: String(item.date),
+        dateISO: item.dateISO ? String(item.dateISO) : undefined,
+        isOutdoor: Boolean(item.isOutdoor),
         location: {
           lat: Number(item.location.lat),
           lng: Number(item.location.lng),
@@ -103,6 +111,7 @@ export async function curateLocalEvents(
         distance: Number(item.distance),
         source: "gemini" as const,
         isPriority: Boolean(item.isPriority),
+        whyRecommended: item.whyRecommended ? String(item.whyRecommended) : undefined,
       })
     );
 
